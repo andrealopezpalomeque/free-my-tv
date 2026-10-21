@@ -132,7 +132,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final int[] glassNight = new int[Backdrop.GW * Backdrop.GH], frostNight = new int[Backdrop.FW * Backdrop.FH];
     private final int[] neutralGlassPx = new int[Backdrop.GW * Backdrop.GH], neutralFrostPx = new int[Backdrop.FW * Backdrop.FH];
     private boolean nightPair;          // the glass holds both photos (day and night), blended by `night`
-    private Shader nightGradient;
+
+    // Without a photo, the background is a pond with rubber ducks (Ducks), redrawn at 30 fps while it shows.
+    private final Ducks ducks = new Ducks(Ducks.HOME_LINE);
+    private double duckTime;
+    private boolean duckFrame;
 
     // At the top: tabs (0 to 2) and icon-only buttons (3 to 5); the three cards
     private int tab, topIndex, cardIndex;
@@ -144,7 +148,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final RectF[] cardRects = new RectF[3];
     private final List<HomeApps.Item> lightButtons = new ArrayList<>();
     private Paint lTitle, lTab, lTabOn, lCardTitle, lCardMeta, lQuote, lTip, lDate, lClock, lWeather, lClockQuote;
-    private Shader lightGradient;
 
     // Shelf
     private List<HomeApps.Item> shelf = new ArrayList<>();
@@ -541,6 +544,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         k = w / 1920f;
         screen.set(0, 0, w, h);
         scene.setSize(w, h);
+        ducks.setSize(w, h);
+        if (bgTo == null && bgFadeAt == 0) neutralGlass();   // the glass needs the pond at this size
         makePaints();
         gridLabels = null;
         clockMinute = -1;
@@ -581,7 +586,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lClock.setLetterSpacing(-0.01f);
         lWeather = Ui.text(Ui.medium, 34 * k, L_DIM);
         lClockQuote = Ui.numbers(Ui.medium, 28 * k, L_DIM);
-        lightGradient = null;
         buttonPaint = Ui.text(Ui.semibold, 29 * k, INK);
         capsuleText = Ui.numbers(Ui.medium, 29 * k, 0xF2FFFFFF);
         tipPaint = Ui.text(Ui.semibold, 25 * k, 0xF2FFFFFF);
@@ -647,6 +651,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         boolean heroFading = tickHeroFade(up);
         boolean bgFading = tickBackgroundFade(up);
         boolean nightMoving = tickNight(up);
+        // The ducks: only while the pond shows (no photo, sheet not covering it); every other frame is enough.
+        boolean ducksOn = (bgTo == null || bgFadeAt != 0) && sheet.value < 0.999f;
+        if (ducksOn) {
+            duckTime += dt;
+            duckFrame = !duckFrame;
+            if (duckFrame) sky.invalidate();
+        }
 
         if (drawerMoving || sheetMoving || motionDirty) updateMotion();
         // Opening and closing the drawer only moves the cached layers: redrawing the glass on every frame made the TV
@@ -675,7 +686,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         // Busy: something is moving, or the sheet or the drawer is open.
         boolean busy = tilesMoving || statusMoving || heroMoving || drawerItemsMoving || gridMoving || drawerMoving
                 || sheetMoving || toastFading || heroFading || bgFading || nightMoving || sheetOpen || sheet.value > 0.001f
-                || drawerOpen || drawer.value > 0.001f || toast != null || !toasts.isEmpty();
+                || drawerOpen || drawer.value > 0.001f || toast != null || !toasts.isEmpty() || ducksOn;
         idle = !busy;
         if (busy) Choreographer.getInstance().postFrameCallback(this);
         else Choreographer.getInstance().postFrameCallbackDelayed(this, 1000);
@@ -843,11 +854,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         return glassNight;
     }
 
-    /** No photo: the glass reads the background's own gray (not Scene's default aurora, which isn't on screen). */
+    /** No photo: the glass reads the pond behind it, without the ducks (not Scene's default aurora). */
     private void neutralGlass() {
-        int color = blend(0xFFEBEBF0, 0xFF141416, night);
-        java.util.Arrays.fill(neutralFrostPx, color);
-        java.util.Arrays.fill(neutralGlassPx, color);
+        ducks.still(neutralGlassPx, neutralFrostPx, night);
         scene.setFrost(neutralFrostPx);
         scene.setGlassImage(neutralGlassPx);
         nightPair = false;
@@ -2645,22 +2654,14 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         // Drawer open: the background lightens (by day) or darkens (at night), as a filter on the drawing itself.
         android.graphics.ColorFilter v = veil(tone(0.32f, 0.42f) * Ui.clamp(drawer.value), blend(0xFFFFFFFF, 0xFF000000, night));
         if (bgTo == null || (fading && bgFrom == null)) {
-            if (lightGradient == null) lightGradient = new LinearGradient(0, 0, 0, h, 0xFFF5F5F7, 0xFFE2E2E7, Shader.TileMode.CLAMP);
-            if (nightGradient == null) nightGradient = new LinearGradient(0, 0, 0, h, 0xFF1C1C1E, 0xFF0B0B0D, Shader.TileMode.CLAMP);
-            fill.setColorFilter(v);
-            fill.setColor(0xFF000000);
-            if (night < 0.999f) {
-                fill.setShader(lightGradient);
+            ducks.draw(c, night, duckTime);
+            // The drawer's veil, as a wash on top (the pond has many paints).
+            float veilAmount = tone(0.32f, 0.42f) * Ui.clamp(drawer.value);
+            if (veilAmount > 0.002f) {
+                fill.setShader(null);
+                fill.setColor(Ui.alpha(blend(0xFFFFFFFF, 0xFF000000, night), veilAmount));
                 c.drawRect(screen, fill);
             }
-            if (night > 0.001f) {
-                fill.setShader(nightGradient);
-                fill.setAlpha(Math.round(255 * night));
-                c.drawRect(screen, fill);
-                fill.setAlpha(255);
-            }
-            fill.setShader(null);
-            fill.setColorFilter(null);
         }
         imagePaint.setColorFilter(v);
         if (fading && bgFrom != null) drawLightImage(c, bgFrom, bgTo == null ? 1 - e : 1);

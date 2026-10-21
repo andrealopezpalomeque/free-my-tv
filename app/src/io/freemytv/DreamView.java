@@ -37,7 +37,8 @@ import java.util.concurrent.Executors;
  *    through the digits, bent at the edges; Shaders.GLASS_TEXT) and the compact prices;
  *  - bottom left, the photo's caption: the time-of-day label ("TONIGHT"), the title, and genre · runtime · service.
  * Dark scrims only where there is text, stronger where the photo is bright. Any key exits (as on Apple TV).
- * Without photos (no TMDB key, or before the first fetch): the big clock over the night aurora.
+ * Without photos (no TMDB key, or before the first fetch): the big clock over a night scene (Ducks), taking turns:
+ * the duck pond one time, container ships at sea the next.
  */
 final class DreamView extends View implements Choreographer.FrameCallback, HomeData.Listener, Recs.Listener {
     private static final long SHOW_MS = 30_000, FADE_MS = 3_000, FIRST_MS = 1_600;
@@ -98,7 +99,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
     private final Recs recs;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExecutorService worker = Executors.newSingleThreadExecutor();
-    private final Recording content = Recording.create("clock");     // without photos: the clock over the aurora
+    private final Recording content = Recording.create("clock");     // without photos: the clock over the pond
     private final Recording chrome = Recording.create("corner");     // date, weather, prices and the clock's shadow
     private final float timeOffset = (float) (Math.random() * 300);
     private final Matrix matrix = new Matrix();
@@ -110,13 +111,14 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
     private final Set<String> failed = new HashSet<>();     // Recs.key: a movie and a series can have the same ID
     private RuntimeShader glassShader;
     private boolean running, dirty = true, chromeDirty = true;
-    private boolean fallback;       // the aurora with the clock (no photos)
+    private boolean fallback;       // the pond with the clock (no photos)
+    private final Ducks ducks = new Ducks(Ducks.SAVER_LINE);
     private boolean decoding;
     private int generation, slides;
     private Slide current, incoming, prepared;
     private Glass glass;
     private String glassFor = "";
-    private long startedAt, firstAt, lastFrame, lastSky;
+    private long startedAt, firstAt, lastFrame;
     private int w, h;
     private float k = 1;
     private long minute = -1;
@@ -165,6 +167,10 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         lastFrame = 0;
         failed.clear();
         fallback = recs.showcase().isEmpty();
+        android.content.SharedPreferences turns = getContext().getSharedPreferences("dream", Context.MODE_PRIVATE);
+        int turn = turns.getInt("scene", 0);
+        turns.edit().putInt("scene", turn + 1).apply();
+        ducks.setShips(turn % 2 == 1);
         data.addListener(this);
         recs.addListener(this);
         data.refreshIfStale();
@@ -219,9 +225,10 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         h = height;
         k = w / 1920f;
         scene.setSize(w, h);
+        ducks.setSize(w, h);
         content.setPosition(0, 0, w, h);
         chrome.setPosition(0, 0, w, h);
-        // Without photos (the clock over the aurora).
+        // Without photos (the clock over the pond).
         datePaint = Ui.text(Ui.semibold, 36 * k, 0xD9FFFFFF);
         datePaint.setTextAlign(Paint.Align.CENTER);
         clockPaint = Ui.numbers(Ui.thin, 280 * k, 0xF2FFFFFF);
@@ -716,15 +723,16 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         }
     }
 
-    // MARK: - Without photos: the big clock over the aurora
+    // MARK: - Without photos: the big clock over the duck pond
 
     private void drawFallback(Canvas canvas, long up, float alpha) {
         float t = (up - startedAt) / 1000f;
-        if (up - lastSky >= 100) {
-            lastSky = up;
-            scene.advance(timeOffset + t);
-        }
-        scene.drawBackground(canvas);
+        // Always the night pond: the white clock reads on it, and a dark screen suits hours of screensaver. The whole
+        // pond drifts a few pixels up and down so the waterline never sits still.
+        canvas.save();
+        canvas.translate(0, (float) (12 * k * Math.sin(2 * Math.PI * t / DRIFT_PERIOD_S * 1.3)));
+        ducks.draw(canvas, 1, timeOffset + t);
+        canvas.restore();
         if (dirty) {
             Canvas rc = content.beginRecording(w, h);
             try {
