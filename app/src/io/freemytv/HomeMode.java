@@ -72,6 +72,12 @@ final class HomeMode {
         // Xiaomi
         "com.miui.tv.analytics", "com.xiaomi.statistic",                              // telemetry
         "com.mitv.tvhome.mitvplus", "com.xm.webcontent",                              // Mi TV+ promo channels, promo web content
+        // Skyworth (VEON and other badges; MediaTek)
+        "com.smartdevice.epopplayer", "com.coocaa.demonow.lightining",               // store demos (start on screen on)
+        "com.smartdevice.recommendation",                                             // Coolita promo channels
+        // KTC (NextStar; MediaTek)
+        "tv.anoki.acr.controller",                                                    // Anoki ACR: watches what's on screen
+        "com.mediatek.tv.retaildemo", "com.electronic.manual",                        // store demo, manual
     };
 
     /** The voice assistant, only with disable_assistant=true in config.properties (the mic button stops working). */
@@ -84,6 +90,11 @@ final class HomeMode {
         "com.tcl.UpdatePeripheral", "com.tcl.dashboard", "com.tcl.suspension", "com.tcl.providers.config",
         "com.tcl.gamebar", "com.tcl.airplay2", "com.mirakulo.astrotv.service", "com.tcl.initsetup",
         "com.tcl.useragreement", "com.tcl.factory.view", "com.tcl.guard", "com.tcl.t_solo",
+        // TCL on Google TV (C825, Android 11): system server, Bluetooth remote and mic, keys, settings and quick menu,
+        // keyboard, webview, Wi-Fi overlay, partner setup
+        "com.tcl.system.server", "com.tcl.tcl_bt_rcu_service", "com.tcl.micmanager", "com.tcl.keyhelp",
+        "com.tcl.settings", "com.tcl.common.shortcutmenu", "com.tcl.inputmethod.international", "com.tcl.android.webview",
+        "com.tcl.wifi.resources.overlay", "com.tcl.partnercustomizer", "com.tcl.tv.tclhome_passive",
         "com.google.android.gms", "com.google.android.gsf", "com.android.vending", "com.google.android.apps.mediashell",
         "com.google.android.tv.remote.service", "com.google.android.inputmethod.latin", "com.google.android.webview",
         "com.android.tv.settings", "com.android.systemui", "android", PKG,
@@ -106,7 +117,19 @@ final class HomeMode {
         "mitv.service", "com.mi.bluetooth", "com.mitv.livetv.ci_mediatek", "com.xiaomi.tvqs.overseas",
         "com.mitv.tvlock", "com.xiaomi.mitv.updateservice", "com.xiaomi.android.tvsetup.partnercustomizer",
         "com.mitv.overseaservice", "com.xiaomi.mitv.tvmanager", "com.xiaomi.wfdsinkhelperservice",
-        "com.mitv.milinkservice", "com.xiaomi.mitv.smartshare", "android.autoinstalls.config.xiaomi.amelie"));
+        "com.mitv.milinkservice", "com.xiaomi.mitv.smartshare", "android.autoinstalls.config.xiaomi.amelie",
+        // Skyworth (MediaTek): live TV, remote pairing and keys, setup, service menu, casting, OLED care, boot
+        "com.smartdevice.livetv", "com.smartdevice.livetv.overlay_SANLUX", "com.smartdevice.bleconnectservice",
+        "com.smartdevice.duplebluetooth", "com.smartdevice.myapp", "com.smartdevice.setupwraith",
+        "com.smartdevice.aftersale", "com.smartdevice.factory", "com.smartdevice.dailymanage",
+        "com.smartdevice.dtv.icast", "com.smartdevice.leanbacklauncher.customizer", "com.mediatek.OledFuctionService",
+        "com.mediatek.android.boot.appsplashscreen", "com.mediatek.android.leanbacklauncher.partnercustomizer",
+        // KTC (NextStar; MediaTek): live TV and tuners, setup, settings, updates, casting, remote pairing, factory menus
+        "com.mediatek.tv.oneworld.tvcenter", "com.mediatek.tis", "com.mediatek.tv.agent",
+        "com.mediatek.dtv.tvinput.dvbtuner", "com.mediatek.tv.oneworld.wizardkt", "com.mediatek.tv.settings",
+        "com.mediatek.tv.systemupdater", "com.mediatek.extservice", "com.mediatek.dialservice", "com.mediatek.miracast",
+        "com.mediatek.tv.launcher.partner", "com.google.android.tv.googletvremotepairer", "com.ktc.serialport",
+        "com.ktc.tv.factory", "ktc.factorymenu.ui"));
 
     /** One switch at a time (jobs can overlap: a boot check and a button press). */
     private static final Object RUN = new Object();
@@ -137,7 +160,7 @@ final class HomeMode {
 
     /**
      * The remote's app buttons (RemoteKeys) need an accessibility service that only filters those keys. It is on only
-     * on TCL and Vestel TVs in Free My TV mode, and goes off with Original. Android turns it off when this app is updated, so the
+     * on TCL, Vestel and Sony TVs in Free My TV mode, and goes off with Original. Android turns it off when this app is updated, so the
      * boot check and an update turn it back on.
      */
     static void ensureRemoteService(Context c, long delayMs) {
@@ -242,11 +265,16 @@ final class HomeMode {
             List<String> targets = targets(home, dream, setupHome);
             Set<String> disabled = new HashSet<>(stringList(state(c), "disabled"));
             Set<String> present = packages(adb, "");
+            Set<String> keptOff = new HashSet<>(stringList(state(c), "keptOff"));
+            for (String pkg : packages(adb, "-d")) if (targets(home, dream, true).contains(pkg) && !disabled.contains(pkg)) keptOff.add(pkg);
+            JSONObject before = state(c);
+            before.put("keptOff", new JSONArray(sorted(keptOff)));
+            save(c, before);
             int done = 0;
             for (String pkg : targets) {
                 done++;
                 busy(c, Ui.tr("Desligando apps (", "Turning off apps (") + done + "/" + targets.size() + ")…");
-                if (PROTECTED.contains(pkg) || !present.contains(pkg) || owners.contains(pkg)) continue;
+                if (PROTECTED.contains(pkg) || !present.contains(pkg) || owners.contains(pkg) || keptOff.contains(pkg)) continue;
                 String out = adb.shell("pm disable-user --user 0 " + pkg);
                 if (out.contains("disabled-user")) {
                     disabled.add(pkg);
@@ -289,6 +317,7 @@ final class HomeMode {
             for (String pkg : targets(home, originalDream(s), true)) {
                 if (!Arrays.asList(DEBLOAT).contains(pkg) && !Arrays.asList(ASSISTANT).contains(pkg)) toEnable.add(pkg);
             }
+            toEnable.removeAll(stringList(s, "keptOff"));
             Set<String> present = packages(adb, "");
             int done = 0;
             List<String> failed = new ArrayList<>();
@@ -310,7 +339,7 @@ final class HomeMode {
             }
             s = state(c);
             s.put("mode", ORIGINAL).put("since", System.currentTimeMillis()).put("homeReverted", false)
-                    .put("disabled", new JSONArray(failed));
+                    .put("disabled", new JSONArray(failed)).remove("keptOff");
             save(c, s);
             if (failed.isEmpty() && homeOk) {
                 notice(c, Ui.tr("Modo original: Início, tela de descanso e apps de fábrica de volta.",
@@ -350,13 +379,14 @@ final class HomeMode {
                 boolean ours = homeHolder(adb).contains(PKG);
                 if (!ours && (!FREE.equals(s.optString("mode")) || s.optBoolean("homeReverted"))) return;
                 String home = originalHome(s);
-                adb.shell("pm enable " + GOOGLE_SETUP);
+                List<String> keptOff = stringList(s, "keptOff");
+                if (!keptOff.contains(GOOGLE_SETUP)) adb.shell("pm enable " + GOOGLE_SETUP);
                 if (!restoreHome(adb, home)) {
                     AppLog.w("could not give the home screen back");
                     return;
                 }
                 String homePkg = packageOf(home), dreamPkg = packageOf(originalDream(s));
-                if (dreamPkg != null) adb.shell("pm enable " + dreamPkg);
+                if (dreamPkg != null && !keptOff.contains(dreamPkg)) adb.shell("pm enable " + dreamPkg);
                 JSONArray kept = new JSONArray();
                 for (String pkg : stringList(s, "disabled")) {
                     if (!pkg.equals(GOOGLE_SETUP) && !pkg.equals(homePkg) && !pkg.equals(dreamPkg)) kept.put(pkg);
@@ -405,14 +435,17 @@ final class HomeMode {
                     }
                 }
                 Set<String> disabled = new HashSet<>(stringList(s, "disabled"));
+                // Off before Free My TV: turned off again if a TV update brings one back, but never handed to
+                // Original to turn on.
+                List<String> keptOff = stringList(s, "keptOff");
                 for (String pkg : sorted(wanted)) {
                     if (PROTECTED.contains(pkg) || !present.contains(pkg) || owners.contains(pkg)) continue;
                     if (disabledNow.contains(pkg)) {
-                        disabled.add(pkg);
+                        if (!keptOff.contains(pkg)) disabled.add(pkg);
                         continue;
                     }
                     if (adb.shell("pm disable-user --user 0 " + pkg).contains("disabled-user")) {
-                        disabled.add(pkg);
+                        if (!keptOff.contains(pkg)) disabled.add(pkg);
                         fixed.add(pkg);
                     }
                 }

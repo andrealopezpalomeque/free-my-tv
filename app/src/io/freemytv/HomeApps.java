@@ -84,7 +84,9 @@ final class HomeApps {
         {"prime", "Prime Video", "com.amazon.amazonvideo.livingroom", "1A98FF", "tint", "0.96"},
         {"disney", "Disney+", "com.disney.disneyplus", "1838C8", "", "1"},
         {"max", "Max", "com.wbd.stream", "6C3BE0", "", "1.32"},
+        {"max", "HBO Max", "com.hbo.hbonow", "6C3BE0", "", "1.32"},
         {"appletv", "Apple TV", "com.apple.atve.androidtv.appletv", "B8BCC6", "", "1.1"},
+        {"appletv", "Apple TV", "com.apple.atve.sony.appletv", "B8BCC6", "", "1.1"},   // Sony's own build
         {"hulu", "Hulu", "com.hulu.livingroomplus", "1CE783", "", "1"},
         {"paramount", "Paramount+", "com.cbs.ott", "0064FF", "", "1"},
         {"peacock", "Peacock", "com.peacocktv.peacockandroid", "6E55DC", "", "1"},
@@ -93,7 +95,8 @@ final class HomeApps {
     };
     static final int MAX_SHELF = 8;
     /** Live TV apps of some brands (the antenna's channels open through the standard Android request first). */
-    static final String[] LIVE_TV_APPS = {"com.tcl.tv", "com.google.android.tv", "com.mediatek.wwtv.tvcenter", "com.sony.dtv.tvx"};
+    static final String[] LIVE_TV_APPS = {"com.tcl.tv", "com.google.android.tv", "com.mediatek.wwtv.tvcenter", "com.sony.dtv.tvx",
+            "com.smartdevice.livetv", "com.mediatek.tv.oneworld.tvcenter"};
     /** Kept out of "All Apps" (only hidden, still installed). Add the ones your TV shows that you never use. */
     private static final Set<String> HIDDEN = new HashSet<>(java.util.Arrays.asList(
             "com.google.android.play.games",        // Google Play Games
@@ -107,6 +110,7 @@ final class HomeApps {
             "com.homwee.chtvmanager",               // Philco: TV Manager (cleaner)
             "com.homwee.multiscreenshare",          // Philco: Midiacast (Chromecast still works)
             "com.xiaomi.mitv.manualhelp",           // Xiaomi: user manual
+            "com.Smartdevice.emanual",              // Skyworth: user manual
             "com.google.android.videos",            // Google Play Movies (discontinued)
             "com.disney.starplus",                  // Star+ (merged into Disney+)
             "com.tcl.exhibit"));                    // TCL: T-Exhibition
@@ -171,11 +175,9 @@ final class HomeApps {
         Set<String> seen = new HashSet<>();
         for (String[] d : SHELF) if (launchIntent(pm, d[2]) != null && seen.add(d[2])) out.add(new String[] {d[2], d[1]});
         List<String[]> more = new ArrayList<>();
-        Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
-            String pkg = ri.activityInfo.packageName;
-            if (pkg.equals(c.getPackageName()) || HIDDEN.contains(pkg) || !seen.add(pkg)) continue;
-            more.add(new String[] {pkg, String.valueOf(ri.loadLabel(pm))});
+        for (String[] app : launchable(c)) {
+            if (app[0].equals(c.getPackageName()) || HIDDEN.contains(app[0]) || !seen.add(app[0])) continue;
+            more.add(app);
         }
         Collections.sort(more, (a, b) -> a[1].toLowerCase(Locale.ROOT).compareTo(b[1].toLowerCase(Locale.ROOT)));
         out.addAll(more);
@@ -330,17 +332,16 @@ final class HomeApps {
         skip.addAll(java.util.Arrays.asList(LIVE_TV_APPS));
         skip.add(c.getPackageName());
         skip.addAll(HIDDEN);
-        Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         List<Item> items = new ArrayList<>();
         Set<String> seen = new HashSet<>();
-        for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
-            String pkg = ri.activityInfo.packageName;
+        for (String[] app : launchable(c)) {
+            String pkg = app[0];
             if (skip.contains(pkg) || !seen.add(pkg)) continue;
             Item it = new Item();
             it.kind = APP;
             it.pkg = pkg;
             it.key = pkg;
-            it.label = String.valueOf(ri.loadLabel(pm));
+            it.label = app[1];
             it.tile = appTile(c, null, pkg, 0);
             items.add(it);
         }
@@ -398,6 +399,10 @@ final class HomeApps {
      */
     static Intent liveTv(Context c) {
         PackageManager pm = c.getPackageManager();
+        // MediaTek OneWorld TV Center (KTC/NextStar) has one input per tuner mode (antenna, cable, satellite): tuning one
+        // switches the TV to that mode and hides the other channel lists, so it opens as it is, on its own last channel.
+        Intent oneWorld = launchIntent(pm, "com.mediatek.tv.oneworld.tvcenter");
+        if (oneWorld != null) return oneWorld;
         String tuner = tunerInput(c);
         Intent mediaTek = launchIntent(pm, "com.mediatek.wwtv.tvcenter");
         if (mediaTek != null && tuner != null) {
@@ -437,6 +442,24 @@ final class HomeApps {
         } catch (RuntimeException ignored) {
         }
         return system != null ? system : fallback;
+    }
+
+    static List<String[]> launchable(Context c) {
+        PackageManager pm = c.getPackageManager();
+        List<String[]> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        Intent tv = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(tv, 0)) {
+            String pkg = ri.activityInfo.packageName;
+            if (seen.add(pkg)) out.add(new String[] {pkg, String.valueOf(ri.loadLabel(pm))});
+        }
+        Intent phone = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(phone, 0)) {
+            String pkg = ri.activityInfo.packageName;
+            if ((ri.activityInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0 || !seen.add(pkg)) continue;
+            out.add(new String[] {pkg, String.valueOf(ri.loadLabel(pm))});
+        }
+        return out;
     }
 
     static Intent launchIntent(PackageManager pm, String pkg) {

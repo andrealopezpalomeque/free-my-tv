@@ -47,7 +47,43 @@ var TV = (function () {
 
   // Not shown among Samsung's apps: Smart Hub's own pieces, the platform's tools and players (but its browser and
   // Netflix, which live there too), services, keyboards and ad players. The rest is what Smart Hub shows.
-  var SAMSUNG_HIDDEN = /^(org\.volt\.|org\.tizen\.(?!browser$|netflix)|ise-|d75857a5-)|Service$|[Dd]aemon|Preview$|syspopup|[Hh]elper$|AdPlayer|AdSuite|[Kk]eyboard/;
+  // Tizen 4 also lists Samsung's own pieces: the YouTube engine's hosts (cobalt-*: "App", "Youtube", "YoutubeTV"),
+  // Bixby, search, previews, the weather and notification popups, Apple TV's stand-in and engine.
+  var SAMSUNG_HIDDEN = new RegExp('^(org\\.volt\\.|org\\.tizen\\.(?!browser$|netflix)|org\\.tizen\\.netflixlowmem$|ise-|ug-|d75857a5-)' +
+      '|[Ss]ervice$|[Dd]aemon|Preview$|syspopup|[Hh]elper$|AdPlayer|AdSuite|[Kk]eyboard|\\.OTApp$' +
+      '|^com\\.samsung\\.(calendar-account-manager|tv\\.(cobalt-|aria-(dummy|engine)|airplay-app|ambient-support|' +
+      'built-in-app-info-viewer|commonsearch|searchall|preview-|tv-scheduler|csfs|notification-app|mycontents|' +
+      'safLaunchBridge|shortcut|remote-workspace|voiceassistant|mybixby|weather-viewer))');
+
+  // Samsung apps whose iconPath is Tizen's generic pinwheel (a valid image, so onerror never fires): our own icons.
+  // Seen on a 2018 NU7675 (Tizen 4); Smart Hub draws their real icons from a folder apps can't read. On a 2017
+  // MU6100 (Tizen 3) no iconPath loads at all, so common apps get a logo here: Simple Icons' (CC0), cropped and tinted
+  // for the tiles, with a width and height so old WebKit sizes them like PNGs.
+  var SAMSUNG_ICONS = {
+    '9Ur5IzDKqV.TizenYouTube': 'icons/youtube.png',
+    'evKhCgZelL.AmazonIgnitionLauncher2': 'icons/prime.png',
+    'RN1MCdNq8t.Netflix': 'icons/netflix.svg',
+    'org.tizen.netflix-app': 'icons/netflix.svg',
+    'NvZ26VG9Yw.HBOGOLAG': 'icons/max.svg',
+    'rJeHak5zRg.Spotify': 'icons/spotify.svg',
+    'cexr1qp97S.Deezer': 'icons/deezer.svg',
+    '5SLwh7m3En.TizenYouTubeKids': 'icons/youtubekids.svg',
+    '4OAwqypfRT.RedBullTV': 'icons/redbull.svg',
+    'UCJa2s9hhC.TED': 'icons/ted.svg',
+    'QizQxC7CUf.PlayMovies': 'icons/googleplay.svg',
+    'vIutycUzou.SteamLink': 'icons/steam.svg',
+    'geUOM7qimf.FOXPlay': 'icons/fox.svg'
+  };
+
+  // Names Smart Hub gets wrong: HBO's app has none (so it never reached the shelf), others are long or old.
+  var SAMSUNG_TITLES = {
+    'NvZ26VG9Yw.HBOGOLAG': 'Max',
+    'rJeHak5zRg.Spotify': 'Spotify',
+    'evKhCgZelL.AmazonIgnitionLauncher2': 'Prime Video'
+  };
+
+  // Samsung's settings menu on Tizen 3, which answers no "settings" app control.
+  var SAMSUNG_MENU = 'org.tizen.menu';
 
   // Samsung's live TV viewer: it shows whichever source the TV is on (the antenna, or the HDMI picked here).
   var SAMSUNG_VIEWER = 'org.tizen.tv-viewer';
@@ -77,8 +113,12 @@ var TV = (function () {
           if (!a.id || a.show === false || a.id === self || SAMSUNG_HIDDEN.test(a.id)) continue;
           var icon = a.iconPath || '';
           if (icon && icon.indexOf('://') < 0) icon = 'file://' + icon;
-          out.push({id: a.id, title: a.name || a.id, icon: icon, color: ''});
+          if (SAMSUNG_ICONS[a.id]) icon = SAMSUNG_ICONS[a.id];
+          out.push({id: a.id, title: SAMSUNG_TITLES[a.id] || a.name || a.id, icon: icon, color: ''});
         }
+        // The built-in Netflix stays only when the store's Netflix isn't installed.
+        var store = out.some(function (x) { return /\.Netflix$/.test(x.id); });
+        if (store) out = out.filter(function (x) { return x.id.indexOf('org.tizen.netflix') !== 0; });
         // Smart Hub keeps its own order, which isn't readable: the same alphabetical order as All Apps elsewhere.
         out.sort(function (x, y) { var a = x.title.toLowerCase(), b = y.title.toLowerCase(); return a < b ? -1 : a > b ? 1 : 0; });
         done(out);
@@ -147,14 +187,14 @@ var TV = (function () {
     });
   }
 
-  /** Samsung's settings: whichever app answers the platform's "settings" request. */
+  /** Samsung's settings: whichever app answers the platform's "settings" request, else the TV's menu (Tizen 3). */
   function samsungSettings(done) {
+    function menu() { samsungLaunch(SAMSUNG_MENU, done); }
     try {
       var control = new window.tizen.ApplicationControl('http://tizen.org/appcontrol/operation/setting', null, null, null, []);
-      window.tizen.application.launchAppControl(control, null, function () { if (done) done(true); },
-          function () { if (done) done(false); });
+      window.tizen.application.launchAppControl(control, null, function () { if (done) done(true); }, menu);
     } catch (e) {
-      if (done) done(false);
+      menu();
     }
   }
 

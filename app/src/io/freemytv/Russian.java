@@ -94,6 +94,7 @@ final class Russian {
             case "Automatic": return "Автоматически";
             case "Light": return "Светлая";
             case "Dark": return "Тёмная";
+            case "Navigation sounds": return "Звуки навигации";
             case "Weather widget": return "Виджет погоды";
             // What TalkBack reads on the drawer's weather card (#47)
             case ". High ": return ". Максимум ";
@@ -119,13 +120,20 @@ final class Russian {
             case "YouTube button": return "Кнопка YouTube";
             case "Prime Video button": return "Кнопка Prime Video";
             case "TCL Channel button": return "Кнопка TCL Channel";
+            case "Tabii button": return "Кнопка Tabii";
             case "Nothing": return "Ничего";
+            case "BRAVIA CORE button": return "Кнопка BRAVIA CORE";
+            case "Disney+ button": return "Кнопка Disney+";
+            case "Crunchyroll button": return "Кнопка Crunchyroll";
+            case "Sony default": return "Как задано Sony";
+            case "Sony default: the button opens what it always did.": return "Как задано Sony: кнопка открывает то же, что и раньше.";
             case "Not installed": return "Не установлено";
             case ", selected": return ", выбрано";
             case "OK or the arrows change the value.": return "Нажмите OK или стрелки, чтобы изменить значение.";
             case "OK picks, Back cancels.": return "OK — выбрать, «Назад» — отменить.";
             case "Disney and Globoplay: the TV itself controls those buttons.": return "Кнопками Disney и Globoplay управляет сам телевизор.";
             case "YouTube, Prime Video and Google Play: the TV itself controls those buttons.": return "Кнопками YouTube, Prime Video и Google Play управляет сам телевизор.";
+            case "Netflix, YouTube and Prime Video: the TV itself controls those buttons.": return "Кнопками Netflix, YouTube и Prime Video управляет сам телевизор.";
             case "These are the TCL remote's buttons: on this TV, the buttons work as they always did.": return "Это кнопки пульта TCL: на этом телевизоре они работают как прежде.";
             case "Explore": return "Обзор";
             case "Movies": return "Фильмы";

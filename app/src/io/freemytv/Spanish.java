@@ -87,6 +87,7 @@ final class Spanish {
             case "Automatic": return "Automático";
             case "Light": return "Claro";
             case "Dark": return "Oscuro";
+            case "Navigation sounds": return "Sonidos de navegación";
             case "Weather widget": return "Widget del clima";
             // What TalkBack reads on the drawer's weather card (#47)
             case ". High ": return ". Máxima ";
@@ -112,13 +113,20 @@ final class Spanish {
             case "YouTube button": return "Botón YouTube";
             case "Prime Video button": return "Botón Prime Video";
             case "TCL Channel button": return "Botón TCL Channel";
+            case "Tabii button": return "Botón Tabii";
             case "Nothing": return "Nada";
+            case "BRAVIA CORE button": return "Botón BRAVIA CORE";
+            case "Disney+ button": return "Botón Disney+";
+            case "Crunchyroll button": return "Botón Crunchyroll";
+            case "Sony default": return "Predeterminado de Sony";
+            case "Sony default: the button opens what it always did.": return "Predeterminado de Sony: el botón abre lo de siempre.";
             case "Not installed": return "No instalada";
             case ", selected": return ", seleccionado";
             case "OK or the arrows change the value.": return "OK o las flechas cambian el valor.";
             case "OK picks, Back cancels.": return "OK elige, Atrás cancela.";
             case "Disney and Globoplay: the TV itself controls those buttons.": return "Disney y Globoplay: el propio TV controla esos botones.";
             case "YouTube, Prime Video and Google Play: the TV itself controls those buttons.": return "YouTube, Prime Video y Google Play: el propio TV controla esos botones.";
+            case "Netflix, YouTube and Prime Video: the TV itself controls those buttons.": return "Netflix, YouTube y Prime Video: el propio TV controla esos botones.";
             case "These are the TCL remote's buttons: on this TV, the buttons work as they always did.": return "Estos son los botones del control de TCL: en este TV, los botones funcionan como siempre.";
             default:
                 if (english.startsWith("Free My TV is on: new home screen and screensaver, ")) {

@@ -244,7 +244,7 @@ var Data = (function () {
   }
 
   function sourceStamp() {
-    var s = KEY.length + ':' + KEY.slice(-6) + ':' + REGION;
+    var s = KEY.length + ':' + KEY.slice(-6) + ':' + REGION + (CONFIG.hideAnimation ? ':no-animation' : '');
     for (var i = 0; i < SERVICES.length; i++) s += appFor(SERVICES[i][1]) ? '1' : '0';
     return s;
   }
@@ -352,8 +352,17 @@ var Data = (function () {
     });
   }
 
+  /** TMDB's Animation genre (movies and shows: cartoons and anime), left out with hide_animation=true. */
+  var ANIMATION = 16;
+
+  function animated(o) {
+    for (var i = 0; o.genre_ids && i < o.genre_ids.length; i++) if (o.genre_ids[i] === ANIMATION) return true;
+    return false;
+  }
+
   function addPick(list, o, kind) {
     if (!o.backdrop_path) return;
+    if (CONFIG.hideAnimation && animated(o)) return;
     list.push({id: o.id, kind: kind, title: kind === 'movie' ? o.title : o.name, backdrop: o.backdrop_path, meta: '', app: null, detailed: false});
   }
 
@@ -385,7 +394,8 @@ var Data = (function () {
       }
       if (!ids.length) { done(new Error("none of the TV's streaming apps are on TMDB")); return; }
       var common = '&language=' + lang() + '&watch_region=' + REGION + '&with_watch_monetization_types=flatrate&include_adult=false'
-          + '&sort_by=popularity.desc&with_watch_providers=' + encodeURIComponent(ids.join('|'));
+          + '&sort_by=popularity.desc&with_watch_providers=' + encodeURIComponent(ids.join('|'))
+          + (CONFIG.hideAnimation ? '&without_genres=' + ANIMATION : '');
       var hot = {movie: [], tv: []}, fresh = {movie: [], tv: []};
       each(['movie', 'tv'], function (kind, next) {
         tmdb('/trending/' + kind + '/week?language=' + lang(), function (e, r) {
