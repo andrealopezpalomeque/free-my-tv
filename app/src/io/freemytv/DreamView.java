@@ -37,11 +37,12 @@ import java.util.concurrent.Executors;
  *    through the digits, bent at the edges; Shaders.GLASS_TEXT) and the compact prices;
  *  - bottom left, the photo's caption: the time-of-day label ("TONIGHT"), the title, and genre · runtime · service.
  * Dark scrims only where there is text, stronger where the photo is bright. Any key exits (as on Apple TV).
- * Without photos (no TMDB key, or before the first fetch): the big clock over a night scene (Ducks), taking turns:
- * the duck pond one time, container ships at sea the next.
+ * Without photos (no TMDB key, or before the first fetch): the big clock over a night scene (Ducks): the duck pond and
+ * container ships at sea, fading from one to the other every 5 minutes; each start opens with the other one.
  */
 final class DreamView extends View implements Choreographer.FrameCallback, HomeData.Listener, Recs.Listener {
     private static final long SHOW_MS = 30_000, FADE_MS = 3_000, FIRST_MS = 1_600;
+    private static final long SCENE_MS = 5 * 60_000, SCENE_FADE_MS = 4_000;
     private static final float ZOOM = 0.1f;
     /** Photos 10% larger than the screen (the zoom goes up to 1.1 without upscaling). */
     private static final int PW = 2112, PH = 1188;
@@ -112,7 +113,11 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
     private RuntimeShader glassShader;
     private boolean running, dirty = true, chromeDirty = true;
     private boolean fallback;       // the pond with the clock (no photos)
-    private final Ducks ducks = new Ducks(Ducks.SAVER_LINE);
+    private final Ducks ducks = new Ducks(Ducks.SAVER_LINE), ships = new Ducks(Ducks.SAVER_LINE);
+    private boolean shipsFirst;
+    {
+        ships.setShips(true);
+    }
     private boolean decoding;
     private int generation, slides;
     private Slide current, incoming, prepared;
@@ -170,7 +175,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         android.content.SharedPreferences turns = getContext().getSharedPreferences("dream", Context.MODE_PRIVATE);
         int turn = turns.getInt("scene", 0);
         turns.edit().putInt("scene", turn + 1).apply();
-        ducks.setShips(turn % 2 == 1);
+        shipsFirst = turn % 2 == 1;
         data.addListener(this);
         recs.addListener(this);
         data.refreshIfStale();
@@ -226,6 +231,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         k = w / 1920f;
         scene.setSize(w, h);
         ducks.setSize(w, h);
+        ships.setSize(w, h);
         content.setPosition(0, 0, w, h);
         chrome.setPosition(0, 0, w, h);
         // Without photos (the clock over the pond).
@@ -731,7 +737,19 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         // pond drifts a few pixels up and down so the waterline never sits still.
         canvas.save();
         canvas.translate(0, (float) (12 * k * Math.sin(2 * Math.PI * t / DRIFT_PERIOD_S * 1.3)));
-        ducks.draw(canvas, 1, timeOffset + t);
+        long into = up - startedAt;
+        int n = (int) (into / SCENE_MS);
+        long since = into % SCENE_MS;
+        if (n > 0 && since < SCENE_FADE_MS) {
+            // The new scene fades in over the old one (an offscreen layer only during these 4 seconds).
+            float e = fadeIn(since, SCENE_FADE_MS);
+            sceneAt(n - 1).draw(canvas, 1, timeOffset + t);
+            canvas.saveLayerAlpha(0, -24 * k, w, h + 24 * k, Math.round(255 * e));
+            sceneAt(n).draw(canvas, 1, timeOffset + t);
+            canvas.restore();
+        } else {
+            sceneAt(n).draw(canvas, 1, timeOffset + t);
+        }
         canvas.restore();
         if (dirty) {
             Canvas rc = content.beginRecording(w, h);
@@ -747,6 +765,11 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         content.setTranslationY((float) (26 * k * Math.sin(2 * phase + 0.7)));
         content.setAlpha(alpha);
         content.draw(canvas);
+    }
+
+    /** The scene for the n-th 5 minutes: ducks and ships taking turns. */
+    private Ducks sceneAt(int n) {
+        return (n % 2 == 1) != shipsFirst ? ships : ducks;
     }
 
     private void drawContent(Canvas c) {
