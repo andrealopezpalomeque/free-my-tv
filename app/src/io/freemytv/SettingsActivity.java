@@ -46,6 +46,7 @@ import java.util.Set;
 public class SettingsActivity extends Activity {
     private SettingsView view;
     private DreamView preview;   // "Screensaver": the screensaver right here, without changing the system setting
+    private boolean previewOnly;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,8 +60,10 @@ public class SettingsActivity extends Activity {
         super.onResume();
         view.resume();
         // From ADB: am start -n io.freemytv/.SettingsActivity --ez screensaver true (straight to the preview).
+        // The home screen's Screensaver button adds screensaverOnly: closing the preview goes back home.
         if (preview == null && getIntent().getBooleanExtra("screensaver", false)) {
             getIntent().removeExtra("screensaver");
+            previewOnly = getIntent().getBooleanExtra("screensaverOnly", false);
             view.pause();
             showPreview();
         }
@@ -108,6 +111,12 @@ public class SettingsActivity extends Activity {
         if (preview == null) return;
         preview.stop();
         preview = null;
+        if (previewOnly) {
+            previewOnly = false;
+            finish();
+            overridePendingTransition(0, android.R.anim.fade_out);
+            return;
+        }
         setContentView(view);
         view.resume();
     }
