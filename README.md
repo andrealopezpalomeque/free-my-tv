@@ -106,7 +106,12 @@ This build takes your city from the TV's time zone. For your exact city and the 
 
 ## Settings
 
-The first values come from `config.properties`, created by the first build (Google TV, LG and Samsung use the same file). Most of them can also be changed on the TV, in *Free My TV* → *Home Settings*, and the TV's choice wins:
+The first values come from `config.properties`, created by the first build (Google TV, LG and Samsung use the same file). Most of them can also be changed on the TV, in *Free My TV* → *Home Settings*, and the TV's choice wins.
+
+Several TVs? Give each its own file in [`tvs/`](tvs) and build with `--config tvs/<name>.properties` (`./build.sh`, `webos/build.py` and `tizen/build.py` all take it). The code stays the same for every TV; the files stay out of git.
+
+The keys:
+
 
 | Key | What it does | Default |
 |---|---|---|

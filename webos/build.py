@@ -3,7 +3,7 @@
 
     python3 webos/build.py            # → FreeMyTV-webos.ipk
     python3 webos/build.py --preview  # also leaves the files in out/webos/ to open index.html in a browser
-    python3 webos/build.py --config other.properties
+    python3 webos/build.py --config tvs/living-room.properties
     python3 webos/build.py --generic  # without config.properties: the TV's time zone picks the city (releases)
 
 Reads config.properties (the same file as the Android build), puts the web home screen (web/), the app's symbols

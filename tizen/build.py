@@ -4,7 +4,7 @@
     python3 tizen/build.py                 # → FreeMyTV-tizen.wgt, not signed yet
     python3 tizen/build.py --sign PROFILE  # signed with a certificate profile of Samsung's Tizen tools
     python3 tizen/build.py --preview       # also leaves the files in out/tizen/ to open index.html in a browser
-    python3 tizen/build.py --config other.properties
+    python3 tizen/build.py --config tvs/living-room.properties
     python3 tizen/build.py --generic       # without config.properties: the TV's time zone picks the city (releases)
 
 The same home screen as on LG (web/), with tizen/config.xml and tizen/icon.png, in a zip as Tizen Studio makes it.

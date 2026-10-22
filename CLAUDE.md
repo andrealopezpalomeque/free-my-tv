@@ -23,6 +23,9 @@ before you do it, and let them do the taps on the TV.
    - Windows: Git Bash (what Claude Code runs there; `build.sh` handles it) or WSL, then as on Linux.
 3. **Settings:** run `./build.sh` once; it creates `config.properties`. Fill in `latitude` and `longitude` (decimal
    degrees) and `city` for their city, `tmdb_region` (two-letter country), `show_crypto`, `currency` and `temperature` to match.
+   Several TVs: one file per TV in `tvs/<name>.properties` (git ignores them), built with `--config tvs/<name>.properties`
+   (`./build.sh`, `webos/build.py`, `tizen/build.py`). One branch for every TV: what differs goes in the TV's file or a
+   switch in Home Settings, never in a branch per TV.
 4. **The TMDB key is theirs and secret.** Ask them to create one (free: themoviedb.org → Settings → API) and paste it
    after `tmdb_key=` in `config.properties` themselves. Don't ask for it in the chat, never print it, never commit
    it. If they paste it in the chat anyway, put it only in `config.properties`.
@@ -206,7 +209,7 @@ HDMI (Chromecast with Google TV, Google TV Streamer, onn 4K, NVIDIA Shield). Set
 
 - Never turn off an app that saved a Wi-Fi network: Android deletes its networks and Original can't bring them
   back (`wifiOwners` in `HomeMode`).
-- Never commit `config.properties`, `*.keystore` or any key.
+- Never commit `config.properties`, `tvs/*.properties`, `*.keystore` or any key.
 - Never uninstall or clear the data of system apps; only `pm disable-user --user 0`, through `HomeMode`, so
   *Original* can bring it back.
 - Don't change the TV's picture, sound, network or account settings.

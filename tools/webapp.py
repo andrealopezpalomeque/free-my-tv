@@ -27,8 +27,10 @@ def config_from_args(args):
 
 def read_config(path):
     if not os.path.exists(path):
+        if os.path.dirname(path):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
         shutil.copy(os.path.join(ROOT, 'config.example.properties'), path)
-        print('Created config.properties: add your TMDB key and your city there (optional), then build again.')
+        print('Created %s: add your TMDB key and your city there (optional), then build again.' % os.path.relpath(path))
     values = {}
     with open(path, encoding='utf-8') as f:
         for line in f:
@@ -41,7 +43,7 @@ def read_config(path):
     def number(key, default):
         v = values.get(key, '') or default
         if not re.match(r'^-?\d+(\.\d+)?$', v):
-            sys.exit('config.properties: %s must be a number (got "%s")' % (key, v))
+            sys.exit('%s: %s must be a number (got "%s")' % (os.path.relpath(path), key, v))
         return v
 
     return {
